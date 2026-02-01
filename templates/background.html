@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ConvVision - AI Studio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <canvas class="bg-canvas" id="bgCanvas"></canvas>
+
+    <nav class="nav-dock">
+        <a href="/" class="nav-item"><i class="fas fa-magic"></i> Filters</a>
+        <a href="/background" class="nav-item active"><i class="fas fa-user-astronaut"></i> AI Studio</a>
+        <a href="/convolution" class="nav-item"><i class="fas fa-microchip"></i> Learn</a>
+    </nav>
+
+    <div class="studio-wrapper">
+        <div class="video-frame">
+            <img id="stream" src="{{ url_for('background.bg_feed') }}" alt="AI Feed">
+            
+            <div class="fps-badge">
+                <i class="fas fa-bolt" style="color: #ff6b35; margin-right: 5px;"></i>
+                <span id="fps-counter">0 FPS</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-stack">
+        
+        <div class="control-box">
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span class="label-tech">BLUR INTENSITY</span>
+                    <span class="val-tech" id="blurVal">21%</span>
+                </div>
+                <input type="range" min="1" max="101" step="2" value="21" oninput="updateBlur(this.value)">
+            </div>
+        </div>
+
+        <div class="control-box" onclick="toggleGlare()" style="cursor: pointer;">
+            <div class="label-tech" style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-sunglasses" style="font-size: 1rem; color: #fff;"></i>
+                ANTI-GLARE
+            </div>
+            <div class="toggle-switch" id="glareSwitch">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function updateBlur(val) {
+            document.getElementById('blurVal').innerText = val + '%';
+            fetch(`/set_blur/${val}`, {method: 'POST'});
+        }
+
+        let isGlare = false;
+        function toggleGlare() {
+            isGlare = !isGlare;
+            const sw = document.getElementById('glareSwitch');
+            if (isGlare) sw.classList.add('active');
+            else sw.classList.remove('active');
+            fetch('/toggle_glare', {method: 'POST'});
+        }
+
+        setInterval(() => {
+            fetch('/get_fps').then(r=>r.json()).then(d => {
+                document.getElementById('fps-counter').innerText = d.fps + " FPS";
+            });
+        }, 1000);
+
+        // Animation logic same as index...
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        const particles = [];
+        
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        for (let i = 0; i < 40; i++) {
+            particles.push({
+                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, size: Math.random() * 2 + 1
+            });
+        }
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255, 107, 53, 0.4)';
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

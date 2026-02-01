@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ConvVision - Camera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <canvas class="bg-canvas" id="bgCanvas"></canvas>
+
+    <nav class="nav-dock">
+        <a href="/" class="nav-item active"><i class="fas fa-magic"></i> Filters</a>
+        <a href="/background" class="nav-item"><i class="fas fa-user-astronaut"></i> AI Studio</a>
+        <a href="/convolution" class="nav-item"><i class="fas fa-microchip"></i> Learn</a>
+    </nav>
+
+    <div class="studio-wrapper">
+        <div class="video-frame">
+            <img id="stream" src="{{ url_for('filters.video_feed') }}" alt="Feed">
+            
+            <div class="top-controls">
+                <button class="icon-btn active" id="btn-mirror" onclick="toggleFeature('mirror', this)" title="Mirror Camera">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="icon-btn" id="btn-split" onclick="toggleFeature('split', this)" title="Split View">
+                    <i class="fas fa-columns"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="bottom-controls">
+            <div class="filter-bar">
+                <div class="filter-item active" onclick="setMode('none', this)">
+                    <div class="preview original"><i class="fas fa-ban"></i></div>
+                    <span>NORMAL</span>
+                </div>
+                <div class="filter-item" onclick="setMode('vivid', this)">
+                    <div class="preview vivid"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <span>VIVID</span>
+                </div>
+                <div class="filter-item" onclick="setMode('studio', this)">
+                    <div class="preview studio"><i class="fas fa-sun"></i></div>
+                    <span>STUDIO</span>
+                </div>
+                <div class="filter-item" onclick="setMode('glow', this)">
+                    <div class="preview glow"><i class="fas fa-sparkles"></i></div>
+                    <span>GLOW</span>
+                </div>
+                <div class="filter-item" onclick="setMode('sharpen', this)">
+                    <div class="preview outline"><i class="fas fa-eye"></i></div>
+                    <span>SHARP</span>
+                </div>
+                <div class="filter-item" onclick="setMode('emboss', this)">
+                    <div class="preview emboss"><i class="fas fa-mountain"></i></div>
+                    <span>EMBOSS</span>
+                </div>
+            </div>
+
+            <button class="shutter-btn" onclick="snap()">
+                <div class="shutter-inner"></div>
+            </button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Background Animation (Keep existing logic)
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        const particles = [];
+        
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        for (let i = 0; i < 40; i++) {
+            particles.push({
+                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, size: Math.random() * 2 + 1
+            });
+        }
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255, 107, 53, 0.4)';
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

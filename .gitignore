@@ -1,0 +1,36 @@
+# --- Python & Virtual Environments ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# --- Flask & Web ---
+instance/
+.webassets-cache
+.pytest_cache/
+
+# --- AI & Computer Vision Models ---
+# Large model weights should not be committed (they can be re-downloaded)
+*.pt
+*.pth
+*.onnx
+yolov8n-seg.pt
+
+# --- Media & Temporary Outputs ---
+# Ignore snapshots you take or temp images
+camstudio_*.jpg
+*.log
+# (Optional) Ignore all images in root, but keep them in static folders
+/*.jpg
+/*.png
+!static/**/*.jpg
+!static/**/*.png
+
+# --- IDE & OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

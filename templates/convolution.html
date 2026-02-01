@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConvVision Lab - Interactive Kernel Visualization</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <canvas class="bg-canvas" id="bgCanvas"></canvas>
+
+    <nav class="nav-dock">
+        <a href="/" class="nav-item">
+            <i class="fas fa-magic"></i> Filters
+        </a>
+        <a href="/background" class="nav-item">
+            <i class="fas fa-user-astronaut"></i> AI Studio
+        </a>
+        <a href="/convolution" class="nav-item active">
+            <i class="fas fa-microchip"></i> Learn
+        </a>
+    </nav>
+    <br><br>
+    <div class="container">
+        <div class="header">
+            <!-- <h1>ConvVision Lab</h1> -->
+            <p>Interactive Kernel Convolution - See Every Step in Real-Time</p>
+        </div>
+
+        <div class="stage-selector">
+            <button class="stage-btn active" data-stage="interactive">
+                <i class="fas fa-hand-pointer"></i> Interactive Demo
+            </button>
+            <button class="stage-btn" data-stage="realtime">
+                <i class="fas fa-image"></i> Real Image Processing
+            </button>
+            <button class="stage-btn" data-stage="pipeline">
+                <i class="fas fa-project-diagram"></i> Full Pipeline
+            </button>
+        </div>
+
+        <div id="stage-interactive" class="stage-content">
+            <div class="viz-container">
+                <div class="viz-panel">
+                    <h2><i class="fas fa-th"></i> Input Image (8x8)</h2>
+                    <div class="pixel-grid" id="inputGrid"></div>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Pattern</label>
+                            <select id="patternSelect">
+                                <option value="gradient">Gradient</option>
+                                <option value="checker">Checkerboard</option>
+                                <option value="spot">Center Spot</option>
+                                <option value="edge">Vertical Edge</option>
+                                <option value="random">Random</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="viz-panel" style="border-color: rgba(255, 107, 53, 0.3);">
+                    <h2><i class="fas fa-filter"></i> Convolution Kernel</h2>
+                    <div class="kernel-grid" id="kernelDisplay"></div>
+                    
+                    <div class="math-display" id="mathDisplay">
+                        <div style="text-align: center; color: #666;">
+                            Hover over input pixels to see convolution
+                        </div>
+                    </div>
+
+                    <div class="kernel-presets">
+                        <div class="kernel-preset active" data-kernel="sharpen">
+                            <div class="kernel-preset-name">Sharpen</div>
+                            <div class="kernel-preset-desc">Enhances edges</div>
+                        </div>
+                        <div class="kernel-preset" data-kernel="edge">
+                            <div class="kernel-preset-name">Edge Detect</div>
+                            <div class="kernel-preset-desc">Finds boundaries</div>
+                        </div>
+                        <div class="kernel-preset" data-kernel="blur">
+                            <div class="kernel-preset-name">Blur</div>
+                            <div class="kernel-preset-desc">Smooths image</div>
+                        </div>
+                        <div class="kernel-preset" data-kernel="emboss">
+                            <div class="kernel-preset-name">Emboss</div>
+                            <div class="kernel-preset-desc">3D effect</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="viz-panel">
+                    <h2><i class="fas fa-chart-bar"></i> Output Feature Map</h2>
+                    <div class="pixel-grid" id="outputGrid"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="stage-realtime" class="stage-content" style="display: none;">
+            <div class="viz-container" style="grid-template-columns: 1fr 1fr;">
+                <div class="viz-panel">
+                    <h2><i class="fas fa-upload"></i> Upload Image</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <div>Click or drag image here</div>
+                        <div style="font-size: 0.75rem; color: #666; margin-top: 8px;">Max 5MB</div>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <img id="inputImage" class="image-preview" style="display: none;">
+                    
+                    <div class="controls" style="margin-top: 24px;">
+                        <div class="control-group">
+                            <label>Select Kernel</label>
+                            <select id="kernelSelect">
+                                <option value="Edge Detection">Edge Detection</option>
+                                <option value="Sharpen">Sharpen</option>
+                                <option value="Box Blur">Box Blur</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="viz-panel">
+                    <h2><i class="fas fa-magic"></i> Processed Output</h2>
+                    <img id="outputImage" class="image-preview" style="display: none;">
+                    <div id="processingPlaceholder" style="text-align: center; padding: 60px 20px; color: #666;">
+                        <i class="fas fa-cog fa-3x" style="opacity: 0.3; margin-bottom: 16px;"></i>
+                        <div>Upload an image to see convolution in action</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="stage-pipeline" class="stage-content" style="display: none;">
+            <div class="pipeline">
+                <div class="pipeline-step">
+                    <div class="pipeline-icon"><i class="fas fa-image"></i></div>
+                    <div class="pipeline-label">Input Image</div>
+                </div>
+                <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="pipeline-step">
+                    <div class="pipeline-icon"><i class="fas fa-grip"></i></div>
+                    <div class="pipeline-label">Sliding Window</div>
+                </div>
+                <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="pipeline-step active">
+                    <div class="pipeline-icon"><i class="fas fa-calculator"></i></div>
+                    <div class="pipeline-label">Element-wise Multiply</div>
+                </div>
+                <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="pipeline-step">
+                    <div class="pipeline-icon"><i class="fas fa-plus"></i></div>
+                    <div class="pipeline-label">Sum Activation</div>
+                </div>
+                <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="pipeline-step">
+                    <div class="pipeline-icon"><i class="fas fa-chart-area"></i></div>
+                    <div class="pipeline-label">Feature Map</div>
+                </div>
+            </div>
+
+            <div class="viz-panel" style="margin-top: 40px; padding: 40px; margin-bottom: 60px;">
+                <h2 style="margin-bottom: 24px; text-align: center;">How Convolution Works</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; color: #888; line-height: 1.8;">
+                    <div>
+                        <div style="color: #ff6b35; font-weight: 600; margin-bottom: 8px;">1. Sliding Window</div>
+                        The kernel slides across the input image pixel by pixel. At each position, it overlaps a region of the input.
+                    </div>
+                    <div>
+                        <div style="color: #ff6b35; font-weight: 600; margin-bottom: 8px;">2. Element-wise Multiply</div>
+                        Each overlapping pixel is multiplied by the corresponding kernel weight. This creates 9 products for a 3x3 kernel.
+                    </div>
+                    <div>
+                        <div style="color: #ff6b35; font-weight: 600; margin-bottom: 8px;">3. Sum & Output</div>
+                        All products are summed to produce a single output pixel. This process repeats for every position.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const particles = [];
+        for (let i = 0; i < 50; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                size: Math.random() * 2 + 1
+            });
+        }
+        function animateBackground() {
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = 'rgba(255, 107, 53, 0.3)';
+            ctx.lineWidth = 0.5;
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                ctx.fillStyle = 'rgba(255, 107, 53, 0.6)';
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[j].x - p.x;
+                    const dy = particles[j].y - p.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
+                    }
+                }
+            });
+            requestAnimationFrame(animateBackground);
+        }
+        animateBackground();
+    </script>
+
+    <script>
+        const kernels = {
+            sharpen: [[0, -1, 0], [-1, 5, -1], [0, -1, 0]],
+            edge: [[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]],
+            blur: [[1/9, 1/9, 1/9], [1/9, 1/9, 1/9], [1/9, 1/9, 1/9]],
+            emboss: [[-2, -1, 0], [-1, 1, 1], [0, 1, 2]]
+        };
+        let currentKernel = 'sharpen';
+        let inputData = [];
+
+        function initGrids() {
+            const inputGrid = document.getElementById('inputGrid');
+            const outputGrid = document.getElementById('outputGrid');
+            const kernelDisplay = document.getElementById('kernelDisplay');
+            generatePattern('gradient');
+            inputData.forEach((val, idx) => {
+                const pixel = document.createElement('div');
+                pixel.className = 'pixel';
+                pixel.textContent = val;
+                pixel.dataset.idx = idx;
+                pixel.addEventListener('mouseenter', () => computeConvolution(idx));
+                pixel.addEventListener('mouseleave', clearHighlights);
+                inputGrid.appendChild(pixel);
+            });
+            for (let i = 0; i < 64; i++) {
+                const pixel = document.createElement('div');
+                pixel.className = 'pixel';
+                pixel.textContent = '-';
+                pixel.id = `out-${i}`;
+                outputGrid.appendChild(pixel);
+            }
+            renderKernel();
+        }
+
+        function renderKernel() {
+            const kernelDisplay = document.getElementById('kernelDisplay');
+            kernelDisplay.innerHTML = '';
+            const kernel = kernels[currentKernel];
+            kernel.forEach((row, i) => {
+                row.forEach((val, j) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'kernel-cell';
+                    if (i === 1 && j === 1) cell.classList.add('center');
+                    cell.textContent = val.toFixed(1);
+                    kernelDisplay.appendChild(cell);
+                });
+            });
+        }
+
+        function generatePattern(type) {
+            inputData = [];
+            for (let i = 0; i < 64; i++) {
+                const row = Math.floor(i / 8);
+                const col = i % 8;
+                switch(type) {
+                    case 'gradient': inputData.push(Math.floor((row * 8 + col) * 4)); break;
+                    case 'checker': inputData.push((row + col) % 2 === 0 ? 200 : 50); break;
+                    case 'spot': 
+                        const dist = Math.sqrt((row - 3.5) ** 2 + (col - 3.5) ** 2);
+                        inputData.push(dist < 2 ? 255 : 30); break;
+                    case 'edge': inputData.push(col < 4 ? 200 : 50); break;
+                    case 'random': inputData.push(Math.floor(Math.random() * 256)); break;
+                }
+            }
+        }
+
+        function computeConvolution(centerIdx) {
+            clearHighlights();
+            const row = Math.floor(centerIdx / 8);
+            const col = centerIdx % 8;
+            if (row === 0 || row === 7 || col === 0 || col === 7) {
+                document.getElementById('mathDisplay').innerHTML = '<div style="text-align: center; color: #666;">Edge pixel - padding required</div>';
+                return;
+            }
+            document.querySelector(`[data-idx="${centerIdx}"]`).classList.add('active');
+            const kernel = kernels[currentKernel];
+            let sum = 0;
+            let steps = [];
+            for (let kr = 0; kr < 3; kr++) {
+                for (let kc = 0; kc < 3; kc++) {
+                    const imgRow = row + kr - 1;
+                    const imgCol = col + kc - 1;
+                    const imgIdx = imgRow * 8 + imgCol;
+                    const pixelVal = inputData[imgIdx];
+                    const kernelVal = kernel[kr][kc];
+                    if (imgIdx !== centerIdx) {
+                        document.querySelector(`[data-idx="${imgIdx}"]`).classList.add('neighbor');
+                    }
+                    const product = pixelVal * kernelVal;
+                    sum += product;
+                    if (Math.abs(kernelVal) > 0.01) {
+                        steps.push(`${pixelVal} × ${kernelVal.toFixed(1)} = ${product.toFixed(0)}`);
+                    }
+                }
+            }
+            const outPixel = document.getElementById(`out-${centerIdx}`);
+            outPixel.textContent = Math.round(sum);
+            outPixel.classList.add('computed');
+            const mathHTML = `
+                <div class="step">${steps.slice(0, 3).join('<br>')}</div>
+                <div class="step">${steps.slice(3).join('<br>')}</div>
+                <div class="result">Result: ${Math.round(sum)}</div>
+            `;
+            document.getElementById('mathDisplay').innerHTML = mathHTML;
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.pixel').forEach(p => {
+                p.classList.remove('active', 'neighbor');
+            });
+        }
+
+        document.getElementById('patternSelect').addEventListener('change', (e) => {
+            generatePattern(e.target.value);
+            document.querySelectorAll('#inputGrid .pixel').forEach((pixel, idx) => {
+                pixel.textContent = inputData[idx];
+            });
+            document.querySelectorAll('#outputGrid .pixel').forEach(p => {
+                p.textContent = '-'; p.classList.remove('computed');
+            });
+        });
+
+        document.querySelectorAll('.kernel-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.kernel-preset').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentKernel = btn.dataset.kernel;
+                renderKernel();
+                document.querySelectorAll('#outputGrid .pixel').forEach(p => {
+                    p.textContent = '-'; p.classList.remove('computed');
+                });
+            });
+        });
+
+        document.querySelectorAll('.stage-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const stage = btn.dataset.stage;
+                document.querySelectorAll('.stage-content').forEach(s => s.style.display = 'none');
+                document.getElementById(`stage-${stage}`).style.display = 'block';
+            });
+        });
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.getElementById('inputImage');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                uploadArea.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('kernel', document.getElementById('kernelSelect').value);
+            try {
+                const response = await fetch('/analyze_convolution', { method: 'POST', body: formData });
+                const data = await response.json();
+                document.getElementById('outputImage').src = 'data:image/jpeg;base64,' + data.output;
+                document.getElementById('outputImage').style.display = 'block';
+                document.getElementById('processingPlaceholder').style.display = 'none';
+            } catch (error) { console.error('Processing error:', error); }
+        });
+
+        initGrids();
+    </script>
+</body>
+</html>
