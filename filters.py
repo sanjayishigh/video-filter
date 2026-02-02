@@ -8,85 +8,103 @@ filters_bp = Blueprint('filters', __name__)
 # State
 filter_config = {
     'mode': 'none',
-    'mirror': True,  # Default to mirrored (selfie mode)
+    'mirror': True,
     'split': False
 }
 
-# --- FILTERS ---
-def apply_vivid_enhance(frame):
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    a = cv2.medianBlur(a, 5); b = cv2.medianBlur(b, 5)
-    l = cv2.medianBlur(l, 3)
-    l = cv2.bilateralFilter(l, d=5, sigmaColor=50, sigmaSpace=50)
-    gaussian_l = cv2.GaussianBlur(l, (5, 5), 2.0)
-    l = cv2.addWeighted(l, 1.5, gaussian_l, -0.5, 0)
-    merged = cv2.merge((l, a, b))
-    bgr = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
-    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-    s = cv2.multiply(s, 1.45)
-    return cv2.cvtColor(cv2.merge((h, s, v)), cv2.COLOR_HSV2BGR)
-
-def apply_studio(frame):
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    l = clahe.apply(l)
-    return cv2.cvtColor(cv2.merge((l, a, b)), cv2.COLOR_LAB2BGR)
-
-def apply_glow(frame):
-    blur = cv2.GaussianBlur(frame, (0, 0), 3)
-    return cv2.addWeighted(frame, 0.7, blur, 0.3, 0)
-
+# --- STANDARD KERNELS ---
 kernels = {
     'sharpen': np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]),
-    'emboss': np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
+    'emboss': np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]]),
+    'outline': np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
 }
+
+# --- CUSTOM FILTER FUNCTIONS ---
+
+def apply_custom_laplacian(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    lap_kernel = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]])
+    convolved = cv2.filter2D(gray, cv2.CV_64F, lap_kernel)
+    convolved = np.absolute(convolved) * 3.5
+    convolved = np.clip(convolved, 0, 255).astype(np.uint8)
+    return cv2.cvtColor(convolved, cv2.COLOR_GRAY2BGR)
+
+def apply_glow(frame):
+    gaussian_kernel = np.array([
+        [1, 4,  6,  4,  1],
+        [4, 16, 24, 16, 4],
+        [6, 24, 36, 24, 6],
+        [4, 16, 24, 16, 4],
+        [1, 4,  6,  4,  1]
+    ], dtype=np.float32) / 256.0
+    blur = cv2.filter2D(frame, -1, gaussian_kernel)
+    blur = cv2.filter2D(blur, -1, gaussian_kernel)
+    return cv2.addWeighted(frame, 0.7, blur, 0.3, 0)
+
+def apply_lowpass(frame):
+    lowpass_kernel = np.array([
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1]
+    ], dtype=np.float32) / 25.0
+    return cv2.filter2D(frame, -1, lowpass_kernel)
+
+def apply_soft_enhance(frame):
+    """
+    Soft Mode - Bilateral Filter (Optimized)
+    Edge-preserving smoothing that reduces noise while keeping sharp boundaries.
+    Optimized parameters for natural skin-like smoothing.
+    """
+    # Bilateral filter: smooths while preserving edges
+    # d=7 (diameter), sigmaColor=50, sigmaSpace=50
+    smoothed = cv2.bilateralFilter(frame, 7, 50, 50)
+    
+    # Subtle saturation boost
+    hsv = cv2.cvtColor(smoothed, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+    s = np.clip(s * 1.2, 0, 255).astype(np.uint8)
+    v = np.clip(v * 1.05, 0, 255).astype(np.uint8)
+    
+    return cv2.cvtColor(cv2.merge((h, s, v)), cv2.COLOR_HSV2BGR)
 
 def process_frame(frame):
     mode = filter_config['mode']
-    if mode == 'vivid': return apply_vivid_enhance(frame)
-    elif mode == 'studio': return apply_studio(frame)
-    elif mode == 'glow': return apply_glow(frame)
+    if mode == 'soft': return apply_soft_enhance(frame)
+    elif mode == 'lowpass': return apply_lowpass(frame)
+    elif mode == 'glow': return apply_glow(frame) 
+    elif mode == 'laplacian': return apply_custom_laplacian(frame)
     elif mode in kernels: return cv2.filter2D(frame, -1, kernels[mode])
     return frame
 
+# --- GENERATOR & ROUTES ---
 def gen_frames():
     while True:
         success, frame = cam_instance.get_frame()
         if not success: break
         
-        # 1. MIRROR LOGIC
         if filter_config['mirror']:
             frame = cv2.flip(frame, 1)
 
-        # Process Filter
         output = process_frame(frame)
         
-        # 2. SPLIT VIEW LOGIC
         if filter_config['split'] and filter_config['mode'] != 'none':
             h, w = frame.shape[:2]
             mid = w // 2
-            
-            # Ensure output matches input size/channels (crucial for edge filters)
             if output.shape[:2] != (h, w):
                 output = cv2.resize(output, (w, h))
-            if len(output.shape) == 2: # Convert grayscale to BGR
+            if len(output.shape) == 2:
                 output = cv2.cvtColor(output, cv2.COLOR_GRAY2BGR)
 
-            # Create Split: Left = Original, Right = Filtered
-            # We cut the original frame in half and the filtered frame in half
             combined = np.hstack((frame[:, :mid, :], output[:, mid:, :]))
-            
-            # Draw Divider Line
             cv2.line(combined, (mid, 0), (mid, h), (255, 107, 53), 2)
             output = combined
 
         ret, buffer = cv2.imencode('.jpg', output, [cv2.IMWRITE_JPEG_QUALITY, 85])
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
-# ROUTES
 @filters_bp.route('/')
 def index(): return render_template('index.html')
 

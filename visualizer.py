@@ -31,7 +31,7 @@ def analyze():
     """
     try:
         # Get uploaded file and kernel selection
-        file = request.files.get('image')
+        file = request.files.get('/jb.jpg')
         k_name = request.form.get('kernel', 'Edge Detection')
         
         if not file:
